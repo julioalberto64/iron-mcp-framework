@@ -459,7 +459,7 @@ Your contribution helps maintain the framework, add new features, improve docume
 
 ## Donate via PayPal
 
-[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/info@nworldt.net)
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/nworldt)
 
 Or send a donation directly to:
 
