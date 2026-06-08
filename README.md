@@ -434,3 +434,37 @@ La respuesta debe incluir información como:
 ```bash
 npm run validate
 ```
+
+## Conventional Commits
+
+IronMCP utiliza Conventional Commits.
+
+Ejemplos:
+
+````bash
+git commit -m "feat: add MCP authentication middleware"
+git commit -m "fix: resolve HTTP transport issue"
+git commit -m "docs: update README"
+git commit -m "refactor: simplify tool registration"
+
+---
+
+# ❤️ Support IronMCP
+
+If IronMCP helps you build better MCP servers, consider supporting the project.
+
+Your contribution helps maintain the framework, add new features, improve documentation, and keep the project open source.
+
+## Donate via PayPal
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/info@nworldt.net)
+
+Or send a donation directly to:
+
+```txt
+info@nworldt.net
+````
+
+Every contribution, no matter the size, helps keep IronMCP growing.
+
+Thank you for your support! 🚀
