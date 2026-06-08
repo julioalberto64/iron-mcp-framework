@@ -173,7 +173,7 @@ get_subscriber_data_balance
 Editar el archivo `.env`:
 
 ```env
-API_BASE_URL=https://micuenta2-tigo-com-gt-prod.tigocloud.net
+API_BASE_URL=https://www.juliomorales.dev/apirest
 API_AUTH_TYPE=bearer-env
 API_TOKEN=TU_TOKEN_AQUI
 ```
@@ -205,7 +205,7 @@ export function createGetSubscriberDataBalanceTool(restClient: RestClient) {
     name: "get_subscriber_data_balance",
     title: "Get Subscriber Data Balance",
     description:
-      "Consulta el balance de datos móviles disponibles, usados y vencimiento de un suscriptor Tigo Guatemala.",
+      "Consulta el balance de datos móviles disponibles, usados y vencimiento de un suscriptor Guatemala.",
     inputSchema: {
       subscriberId: z.string().min(8).describe("Número de suscriptor. Ejemplo: 50230448966"),
     },
@@ -276,7 +276,7 @@ export function createGetSubscriberDataBalanceTool(restClient: RestClient) {
         )}/balances/data?_format=json&load_roaming=false&onlinetetheringquota=false`,
         {
           headers: {
-            Referer: "https://mi.tigo.com.gt/",
+            Referer: "https://www.juliomorales.dev/",
             Accept: "application/json, text/plain, */*",
           },
         },
@@ -402,7 +402,7 @@ La respuesta debe incluir información como:
 
 ```json
 {
-  "description": "30GB + REDES SOCIALES + MUSICA + TIGO SPORTS",
+  "description": "30GB + REDES SOCIALES + MUSICA + SPORTS",
   "remainingFormatted": "15.48 GB",
   "usedFormatted": "14.52 GB",
   "reservedFormatted": "30 GB",

@@ -11,7 +11,7 @@ export function createGetSubscriberBalanceTool(restClient: RestClient) {
   return defineTool({
     name: "get_subscriber_balance",
     title: "Get Subscriber Balance",
-    description: "Consulta el balance de facturación de un suscriptor móvil Tigo Guatemala.",
+    description: "Consulta el balance de facturación de un suscriptor móvil Guatemala.",
     inputSchema: {
       subscriberId: z.string().min(8).describe("Número de suscriptor. Ejemplo: 50230448966"),
     },
@@ -63,7 +63,7 @@ export function createGetSubscriberBalanceTool(restClient: RestClient) {
         )}/balance?_format=json`,
         {
           headers: {
-            Referer: "https://mi.tigo.com.gt/",
+            Referer: "https://juliomorales.dev/apirest/",
             Accept: "application/json, text/plain, */*",
           },
         },
