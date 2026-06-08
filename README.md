@@ -447,6 +447,7 @@ git commit -m "fix: resolve HTTP transport issue"
 git commit -m "docs: update README"
 git commit -m "refactor: simplify tool registration"
 
+```
 ---
 
 # ❤️ Support IronMCP
