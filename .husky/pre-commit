@@ -1,0 +1,4 @@
+npm run mcp:validate
+npm run lint-staged
+npm run typecheck
+npm run secrets:check

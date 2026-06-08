@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip/schema.json",
+  "entry": ["src/index.ts", "tools/mcp-validate.mjs"],
+  "project": ["src/**/*.ts", "test/**/*.ts", "tools/**/*.mjs"],
+  "ignore": ["dist/**", "coverage/**"]
+}

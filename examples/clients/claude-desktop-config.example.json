@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "mcp-node-framework-starter": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-node-framework-starter/dist/index.js",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "LOG_LEVEL": "info",
+        "API_BASE_URL": "https://httpbin.org",
+        "API_AUTH_TYPE": "bearer-env",
+        "API_TOKEN": "replace-with-your-token"
+      }
+    }
+  }
+}
