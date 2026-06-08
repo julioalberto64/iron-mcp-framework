@@ -1,9 +1,9 @@
-import pino, { type Logger } from "pino";
+import pino from "pino";
 
 import type { AppConfig } from "./config.js";
 
-export function createLogger(config: AppConfig): Logger {
-  const options = {
+export function createLogger(config: AppConfig): pino.Logger {
+  const options: pino.LoggerOptions = {
     level: config.logging.level,
     base: {
       service: config.server.name,
@@ -13,7 +13,7 @@ export function createLogger(config: AppConfig): Logger {
   };
 
   if (config.transport === "stdio") {
-    return pino(options, pino.destination(2));
+    return pino(options, process.stderr);
   }
 
   return pino(options);

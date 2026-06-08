@@ -14,6 +14,7 @@
     "check": "npm run lint && npm run typecheck",
     "predev:stdio": "npm run check",
     "dev:stdio": "tsx watch src/index.ts --transport stdio",
+    "dev:inspector": "npm run build && npx -y @modelcontextprotocol/inspector@latest",
     "predev:http": "npm run check",
     "dev:http": "tsx watch src/index.ts --transport http",
     "build": "tsc -p tsconfig.json",
