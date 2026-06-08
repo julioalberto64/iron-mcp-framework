@@ -1,7 +1,5 @@
 # IronMCP Framework Starter
 
-![CI](https://github.com/julioalberto64/iron-mcp-framework/actions/workflows/ci.yml/badge.svg)
-
 Starter empresarial para crear servidores MCP en Node.js + TypeScript con:
 
 - Transporte `stdio` para clientes locales.
