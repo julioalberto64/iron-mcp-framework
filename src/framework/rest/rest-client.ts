@@ -11,6 +11,8 @@ export interface RestClientOptions {
 }
 
 export interface RequestOptions {
+  /** Destinos públicos fijos; nunca reciben credenciales de la API configurada. */
+  service?: "weather-geocoding" | "weather-current";
   headers?: Record<string, string>;
   body?: unknown;
   timeoutMs?: number;
@@ -56,6 +58,15 @@ export class RestClient {
   }
 
   private async request<T>(method: string, pathName: string, options: RequestOptions): Promise<T> {
+    const publicServices = {
+      "weather-geocoding": "https://geocoding-api.open-meteo.com/v1/search",
+      "weather-current": "https://api.open-meteo.com/v1/forecast",
+    } as const;
+    const serviceUrl = options.service === undefined ? undefined : publicServices[options.service];
+    if (options.service !== undefined && serviceUrl === undefined) {
+      throw new ConfigError("Servicio REST no permitido");
+    }
+    const baseUrl = serviceUrl === undefined ? this.baseUrl : new URL(serviceUrl);
     if (
       /^[a-z][a-z\d+.-]*:/iu.test(pathName) ||
       pathName.startsWith("//") ||
@@ -66,11 +77,17 @@ export class RestClient {
     ) {
       throw new ApiError("La ruta REST debe ser relativa al origen configurado", 400);
     }
-    const url = new URL(pathName, this.baseUrl);
-    if (url.origin !== this.baseUrl.origin || url.username || url.password) {
+    const url = new URL(pathName, baseUrl);
+    if (url.origin !== baseUrl.origin || url.username || url.password) {
       throw new ApiError("Destino REST no permitido", 400);
     }
+    if (serviceUrl !== undefined && (method !== "GET" || url.pathname !== baseUrl.pathname)) {
+      throw new ApiError("Operacion no permitida para el servicio publico", 400);
+    }
     const extraHeaders = options.headers ?? {};
+    if (serviceUrl !== undefined && Object.keys(extraHeaders).length > 0) {
+      throw new ApiError("El servicio publico no admite headers adicionales", 400);
+    }
 
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -87,7 +104,8 @@ export class RestClient {
 
     try {
       signal.throwIfAborted();
-      const authHeaders = await this.authHeaderProvider.getHeaders();
+      const authHeaders =
+        serviceUrl === undefined ? await this.authHeaderProvider.getHeaders() : {};
       signal.throwIfAborted();
       const requestInit: RequestInit = {
         method,

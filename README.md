@@ -9,6 +9,8 @@ Starter empresarial para crear servidores MCP en Node.js + TypeScript con:
 - REST client centralizado con autenticacion.
 - Validadores de codigo y seguridad.
 - Contrato obligatorio para tools: schema, auth, timeout, auditoria e idempotencia.
+- Skill para crear tools con ayuda de una IA siguiendo las convenciones del framework.
+- Tool `get_weather` para consultar el clima por ciudad y resolver ubicaciones ambiguas.
 
 ## Requisitos
 
@@ -68,6 +70,75 @@ npm run dev:http
 bash scripts/smoke-http.sh examples/http/call-secure-api.json
 ```
 
+## Clima actual: `get_weather`
+
+Consulta condiciones actuales modeladas por [Open-Meteo](https://open-meteo.com/en/docs)
+para uso **no comercial**, sin API key. El servicio gratuito tiene límites de uso;
+consulta sus [condiciones](https://open-meteo.com/en/pricing). Los datos requieren
+atribución CC BY 4.0, incluida en la salida de la tool. Las condiciones actuales
+proceden de modelos meteorológicos y pueden diferir de una observación local.
+
+Parámetros de entrada:
+
+| Parámetro     | Obligatorio | Descripción                                                             |
+| ------------- | ----------- | ----------------------------------------------------------------------- |
+| `city`        | Sí          | Nombre de la ciudad, de 2 a 120 caracteres, sin país ni región.         |
+| `countryCode` | No          | Código ISO del país de dos letras, por ejemplo `GT` o `ES`.             |
+| `locationId`  | No          | Entero positivo elegido entre los candidatos de una respuesta anterior. |
+
+La búsqueda exige coincidencia del nombre
+sin distinguir mayúsculas ni acentos. No acepta URLs ni rutas.
+
+La tool requiere un principal autenticado con `weather:read`. Para habilitarla,
+añade tú ese scope a `MCP_AUTH_SCOPES`, conservando los permisos que necesites para
+las otras tools. Por ejemplo, para habilitar las tools incluidas:
+
+```env
+MCP_AUTH_SCOPES=external-api:read,billing:read,weather:read
+```
+
+Reinicia el servidor con `npm run dev:http` después de cambiar la configuración. Si ya está ejecutándose, detenlo antes con `Ctrl+C`. La integración no modifica `.env`, tokens ni los permisos concedidos a los clientes existentes.
+
+Usa `context.restClient` con dos destinos públicos fijos y sin headers de
+autenticación externos: `https://geocoding-api.open-meteo.com/v1/search` y
+`https://api.open-meteo.com/v1/forecast`. Estos destinos solo permiten GET a esas
+rutas; no reutilizan `API_TOKEN`, `API_KEY` ni cambian `API_BASE_URL`. Conservan
+cancelación, timeout, bloqueo de redirecciones y límite de respuesta del cliente.
+
+Ejemplo: [tools/call](examples/http/call-get-weather.json). Envía el JSON con
+`POST /mcp`, Bearer MCP y headers `Content-Type: application/json` y
+`Accept: application/json, text/event-stream`. El transporte es stateless, no
+requiere sesión y puede devolver eventos SSE. `GET /healthz` solo consulta el
+estado HTTP. La colección [Postman](examples/postman/iron-mcp.postman_collection.json)
+incluye la petición **Clima actual — requiere weather:read**, usando `{{mcp_url}}` y `{{mcp_token}}`. Vuelve a importar la colección actualizada si todavía no aparece.
+
+Body JSON de ejemplo:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": {
+      "city": "Madrid",
+      "countryCode": "ES"
+    }
+  }
+}
+```
+
+Una consulta resuelta devuelve `result.status: "ok"` junto con `city`, `country`,
+`temperatureC`, `feelsLikeC` y `description` en español, además de `attribution`
+al nivel superior. Ante homónimos devuelve `result.status: "needs_clarification"`,
+un mensaje y `candidates` con ciudad, país, región si existe y `locationId`.
+Repite la llamada con `city` y el `locationId` elegido; añadir solo el país puede
+seguir siendo ambiguo. No consulta el clima hasta resolver la ubicación. Si la
+búsqueda alcanza el límite de 100 resultados, marca `truncated: true` y solicita
+precisión. Las ciudades ausentes, respuestas inválidas y fallos del proveedor se
+propagan como errores MCP, sin fabricar datos meteorológicos.
+
 ## Seguridad y permisos
 
 HTTP requiere `MCP_AUTH_TOKEN` cuando `MCP_AUTH_ENABLED=true`; debe tener entre 32 y 256 caracteres ASCII sin espacios. Genera un token aleatorio con `openssl rand -hex 32`. Si falta o es inválido, el servidor falla al iniciar. El cliente debe enviar `Authorization: Bearer <token>`. Para el script de prueba, exporta `MCP_AUTH_TOKEN` en la terminal antes de ejecutar `bash scripts/smoke-http.sh`.
@@ -80,7 +151,7 @@ HTTP opera sin sesiones: cada petición crea y cierra su servidor MCP; no se dev
 
 Al vencer el timeout o cancelar una petición MCP, el framework aborta `context.signal` y el `context.restClient` asociado. Las tools deben consumir ese cliente del contexto. Para otras operaciones asíncronas, pasa `context.signal` a las APIs que admitan cancelación y comprueba `context.signal?.throwIfAborted()` antes de efectos posteriores. JavaScript no puede interrumpir de forma forzada código que ignora la señal; cancelar una petición tampoco revierte operaciones ya ejecutadas por la API externa.
 
-`RestClient` acepta rutas relativas del origen configurado en `API_BASE_URL`, bloquea URLs absolutas y redirecciones, y limita cada respuesta a 2 MiB. Los headers y parámetros de consulta no se escriben en los logs REST. La tool de demostración `call_secure_api` solo permite `/bearer`; para otros endpoints crea una tool con rutas y permisos específicos.
+`RestClient` usa por defecto rutas relativas del origen configurado en `API_BASE_URL`, bloquea URLs absolutas y redirecciones, y limita cada respuesta a 2 MiB. La integración de clima utiliza servicios públicos con destinos y rutas fijos, sin reenviar las credenciales de esa API. Los headers y parámetros de consulta no se escriben en los logs REST. La tool de demostración `call_secure_api` solo permite `/bearer`; para otros endpoints crea una tool con rutas y permisos específicos.
 
 ## Scripts principales
 
@@ -114,6 +185,8 @@ src/
   tools/
     health.tool.ts
     call-secure-api.tool.ts
+    get-subscriber-balance.tool.ts
+    get-weather.tool.ts
 ```
 
 ## Reglas del estandar
@@ -132,6 +205,8 @@ El validador propio `tools/mcp-validate.mjs` falla el build si detecta:
 La skill del repositorio está en [`.agents/skills/create-mcp-tool/SKILL.md`](.agents/skills/create-mcp-tool/SKILL.md). [AGENTS.md](AGENTS.md) indica a los agentes que la lean cuando se les solicite crear o ampliar una tool. Incluye el flujo de implementación, registro, permisos, cancelación, pruebas y ejemplos HTTP/Postman.
 
 Puedes pedir: «Crea una tool para consultar un cliente usando GET /customers/{customerId}, con scope customers:read; implementa y valida el cambio». Incluye el contrato real de entrada y respuesta del endpoint. En clientes que permitan invocar skills por nombre, también puedes usar `$create-mcp-tool`.
+
+La tool [`get_weather`](#clima-actual-get_weather) se agregó usando este flujo: la IA implementó la consulta por ciudad, su registro, las pruebas y los ejemplos a partir de la skill. Para otras tools, proporciona su propósito y el contrato de la integración que necesitas.
 
 Si tu asistente no descubre skills ni lee `AGENTS.md` automáticamente, indícale que abra el `SKILL.md` anterior. El ejemplo completo de código y pruebas está en [references/example.md](.agents/skills/create-mcp-tool/references/example.md); no se registra ninguna tool de demostración en el servidor por agregar esta guía.
 
