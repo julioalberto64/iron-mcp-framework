@@ -22,6 +22,7 @@ describe("parseConfig", () => {
         baseUrl: "https://example.com",
         timeoutMs: 5000,
       },
+      mcpAuth: { enabled: false },
       auth: {
         type: "none",
       },

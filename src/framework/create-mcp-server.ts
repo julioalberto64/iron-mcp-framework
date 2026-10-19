@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import type { AppConfig } from "./config.js";
-import { toSafeErrorMessage } from "./errors.js";
+import { AuthError, toSafeErrorMessage } from "./errors.js";
 import type { McpToolDefinition, ToolExecutionContext } from "./types.js";
 
 import { withTimeout } from "./timeout.js";
@@ -46,6 +46,20 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
       );
 
       try {
+        const principal =
+          options.config.transport === "stdio"
+            ? options.context.principal
+            : extra.authInfo === undefined
+              ? undefined
+              : { id: extra.authInfo.clientId, scopes: extra.authInfo.scopes };
+        if (tool.auth.required) {
+          if (principal === undefined) {
+            throw new AuthError("Autenticacion requerida");
+          }
+          if (!tool.auth.scopes.every((scope) => principal.scopes.includes(scope))) {
+            throw new AuthError("Permisos insuficientes para ejecutar esta tool");
+          }
+        }
         await server.sendLoggingMessage(
           {
             level: "info",
@@ -55,9 +69,16 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         );
 
         const output = await withTimeout(
-          tool.handler(input as Record<string, unknown>, options.context),
+          (signal) =>
+            tool.handler(input as Record<string, unknown>, {
+              ...options.context,
+              ...(principal === undefined ? {} : { principal }),
+              signal,
+              restClient: options.context.restClient.withSignal(signal),
+            }),
           tool.timeoutMs,
           `Tool ${tool.name} excedio timeout de ${tool.timeoutMs}ms`,
+          extra.signal,
         );
 
         const durationMs = Date.now() - startedAt;

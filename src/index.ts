@@ -18,9 +18,12 @@ async function main(): Promise<void> {
     config,
     logger,
     restClient,
+    ...(config.transport === "stdio"
+      ? { principal: { id: "local-stdio", scopes: config.mcpAuth.scopes ?? [] } }
+      : {}),
   };
 
-  const serverFactory = () => createMcpServer({ config, context, tools: createTools(restClient) });
+  const serverFactory = () => createMcpServer({ config, context, tools: createTools() });
 
   if (config.transport === "stdio") {
     await startStdioTransport(serverFactory(), logger);

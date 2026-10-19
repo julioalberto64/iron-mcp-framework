@@ -3,7 +3,7 @@ import * as z from "zod/v4";
 import { defineTool } from "../framework/types.js";
 
 const SecureApiInput = z.object({
-  path: z.string().default("/bearer").describe("Ruta relativa que se llamara bajo api.baseUrl"),
+  path: z.enum(["/bearer"]).default("/bearer").describe("Endpoint de demostracion permitido"),
 });
 
 export const callSecureApiTool = defineTool({
@@ -12,7 +12,7 @@ export const callSecureApiTool = defineTool({
   description:
     "Ejemplo de tool que llama una API REST por debajo usando el RestClient autenticado del framework.",
   inputSchema: {
-    path: z.string().default("/bearer").describe("Ruta relativa que se llamara bajo api.baseUrl"),
+    path: z.enum(["/bearer"]).default("/bearer").describe("Endpoint de demostracion permitido"),
   },
   outputSchema: {
     baseUrl: z.string(),

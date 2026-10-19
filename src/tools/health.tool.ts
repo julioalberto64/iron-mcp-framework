@@ -25,12 +25,12 @@ export const healthTool = defineTool({
     category: "system",
     pii: false,
   },
-  handler(input) {
+  handler(input, context) {
     return Promise.resolve({
       ok: true,
-      server: "mcp-node-framework-starter",
-      version: "0.1.0",
-      transport: "unknown",
+      server: context.config.server.name,
+      version: context.config.server.version,
+      transport: context.config.transport,
       echo: input.echo,
     });
   },

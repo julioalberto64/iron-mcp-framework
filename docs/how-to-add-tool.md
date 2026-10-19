@@ -63,3 +63,7 @@ export const tools = [healthTool, callSecureApiTool, getCustomerTool];
 npm run mcp:validate
 npm run validate
 ```
+
+## Cancelación
+
+Usa `context.restClient` dentro del handler: el framework lo vincula al timeout de la tool y a la cancelación MCP. Para otras operaciones, pasa `context.signal` a la API que soporte `AbortSignal`. Comprueba `context.signal?.throwIfAborted()` antes de efectos posteriores. Evita capturar un RestClient global en la tool, ya que omitiría esta cancelación.

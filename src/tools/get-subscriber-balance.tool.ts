@@ -1,13 +1,12 @@
 import * as z from "zod/v4";
 
-import type { RestClient } from "../framework/rest/rest-client.js";
 import { defineTool } from "../framework/types.js";
 
 const getSubscriberBalanceInputSchema = z.object({
   subscriberId: z.string().min(8).describe("Número de suscriptor. Ejemplo: 50230448966"),
 });
 
-export function createGetSubscriberBalanceTool(restClient: RestClient) {
+export function createGetSubscriberBalanceTool() {
   return defineTool({
     name: "get_subscriber_balance",
     title: "Get Subscriber Balance",
@@ -36,10 +35,10 @@ export function createGetSubscriberBalanceTool(restClient: RestClient) {
       category: "external-api",
       pii: true,
     },
-    async handler(input) {
+    async handler(input, context) {
       const parsedInput = getSubscriberBalanceInputSchema.parse(input);
 
-      const response = await restClient.get<{
+      const response = await context.restClient.get<{
         data?: {
           invoiceId?: { formattedValue?: string; value?: string };
           dueAmount?: { value?: number; formattedValue?: string };

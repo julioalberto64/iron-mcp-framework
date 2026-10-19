@@ -21,3 +21,10 @@ auth:
   token: ""
   apiKeyHeader: x-api-key
   apiKey: ""
+
+mcpAuth:
+  enabled: true
+  token: ""
+  scopes:
+    - external-api:read
+    - billing:read

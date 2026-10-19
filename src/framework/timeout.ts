@@ -1,23 +1,36 @@
 import { TimeoutError } from "./errors.js";
 
 export async function withTimeout<T>(
-  promise: Promise<T>,
+  operation: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
   message: string,
+  parentSignal?: AbortSignal,
 ): Promise<T> {
-  let timeout: NodeJS.Timeout | undefined;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => {
-      reject(new TimeoutError(message, { timeoutMs }));
-    }, timeoutMs);
+  const controller = new AbortController();
+  const signal =
+    parentSignal === undefined
+      ? controller.signal
+      : AbortSignal.any([parentSignal, controller.signal]);
+  const timeout = setTimeout(() => {
+    controller.abort(new TimeoutError(message, { timeoutMs }));
+  }, timeoutMs);
+  let onAbort: () => void = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () =>
+      reject(signal.reason instanceof Error ? signal.reason : new Error("Operacion cancelada"));
+    if (signal.aborted) onAbort();
+    else signal.addEventListener("abort", onAbort, { once: true });
   });
-
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race([
+      aborted,
+      Promise.resolve().then(() => {
+        signal.throwIfAborted();
+        return operation(signal);
+      }),
+    ]);
   } finally {
-    if (timeout !== undefined) {
-      clearTimeout(timeout);
-    }
+    clearTimeout(timeout);
+    signal.removeEventListener("abort", onAbort);
   }
 }

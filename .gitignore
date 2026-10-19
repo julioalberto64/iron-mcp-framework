@@ -6,3 +6,4 @@ coverage/
 !.env.example
 *.log
 .DS_Store
+/.postman.local_environment.json

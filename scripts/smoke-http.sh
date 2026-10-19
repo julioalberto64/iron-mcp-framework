@@ -4,9 +4,13 @@ set -euo pipefail
 BASE_URL="${MCP_URL:-http://127.0.0.1:3000/mcp}"
 ACCEPT_HEADER="application/json, text/event-stream"
 
-echo "Initialize MCP session..."
+echo "Initialize MCP..."
 
-HEADERS_FILE="$(mktemp)"
+AUTH_ARGS=()
+if [ -n "${MCP_AUTH_TOKEN:-}" ]; then
+  AUTH_ARGS=(-H "Authorization: Bearer $MCP_AUTH_TOKEN")
+fi
+
 INIT_BODY='{
   "jsonrpc": "2.0",
   "id": 1,
@@ -21,26 +25,15 @@ INIT_BODY='{
   }
 }'
 
-curl -sS \
-  -D "$HEADERS_FILE" \
+curl --fail-with-body -sS \
   -X POST "$BASE_URL" \
+  "${AUTH_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -H "Accept: $ACCEPT_HEADER" \
   --data "$INIT_BODY"
 
 echo ""
 
-SESSION_ID="$(
-  awk 'tolower($1) == "mcp-session-id:" {print $2}' "$HEADERS_FILE" | tr -d '\r'
-)"
-
-if [ -z "$SESSION_ID" ]; then
-  echo "No MCP session id returned." >&2
-  cat "$HEADERS_FILE" >&2
-  exit 1
-fi
-
-echo "Session: $SESSION_ID"
 echo "Call health_check..."
 
 CALL_BODY='{
@@ -55,12 +48,11 @@ CALL_BODY='{
   }
 }'
 
-curl -sS \
+curl --fail-with-body -sS \
   -X POST "$BASE_URL" \
+  "${AUTH_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -H "Accept: $ACCEPT_HEADER" \
-  -H "mcp-session-id: $SESSION_ID" \
   --data "$CALL_BODY"
 
 echo ""
-rm -f "$HEADERS_FILE"

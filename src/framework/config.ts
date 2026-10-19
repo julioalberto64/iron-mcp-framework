@@ -11,35 +11,67 @@ const LogLevelSchema = z.enum(["trace", "debug", "info", "warn", "error", "fatal
 const TransportSchema = z.enum(["stdio", "http"]);
 const AuthTypeSchema = z.enum(["none", "bearer-env", "api-key-env"]);
 
-export const AppConfigSchema = z.object({
-  server: z.object({
-    name: z.string().min(1),
-    version: z.string().min(1),
-  }),
-  transport: TransportSchema,
-  http: z.object({
-    host: z.string().min(1),
-    port: z.number().int().positive(),
-    path: z.string().startsWith("/"),
-  }),
-  logging: z.object({
-    level: LogLevelSchema,
-  }),
-  api: z.object({
-    baseUrl: z.string().url(),
-    timeoutMs: z.number().int().positive(),
-  }),
-  auth: z.object({
-    type: AuthTypeSchema,
-    token: z.string().optional(),
-    apiKeyHeader: z.string().optional(),
-    apiKey: z.string().optional(),
-  }),
-  mcpAuth: z.object({
-    enabled: z.boolean(),
-    token: z.string().optional(),
-  }),
-});
+export const AppConfigSchema = z
+  .object({
+    server: z.object({
+      name: z.string().min(1),
+      version: z.string().min(1),
+    }),
+    transport: TransportSchema,
+    http: z.object({
+      host: z.string().min(1),
+      port: z.number().int().min(1).max(65535),
+      path: z.string().startsWith("/"),
+    }),
+    logging: z.object({
+      level: LogLevelSchema,
+    }),
+    api: z.object({
+      baseUrl: z
+        .string()
+        .url()
+        .refine((value) => {
+          const url = new URL(value);
+          return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+        }, "API_BASE_URL debe ser HTTP(S) y no incluir credenciales"),
+      timeoutMs: z.number().int().positive(),
+    }),
+    auth: z.object({
+      type: AuthTypeSchema,
+      token: z.string().optional(),
+      apiKeyHeader: z.string().optional(),
+      apiKey: z.string().optional(),
+    }),
+    mcpAuth: z.object({
+      enabled: z.boolean(),
+      token: z.string().optional(),
+      scopes: z.array(z.string().min(1)).optional(),
+    }),
+  })
+  .superRefine((config, context) => {
+    if (config.transport === "http" && config.mcpAuth.enabled && !config.mcpAuth.token?.trim()) {
+      context.addIssue({
+        code: "custom",
+        path: ["mcpAuth", "token"],
+        message: "MCP_AUTH_TOKEN es obligatorio cuando MCP_AUTH_ENABLED=true",
+      });
+    }
+    if (
+      config.transport === "http" &&
+      config.mcpAuth.enabled &&
+      config.mcpAuth.token?.trim() &&
+      (config.mcpAuth.token.length < 32 ||
+        config.mcpAuth.token.length > 256 ||
+        /[^!-~]/u.test(config.mcpAuth.token))
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["mcpAuth", "token"],
+        message:
+          "MCP_AUTH_TOKEN debe tener entre 32 y 256 caracteres ASCII sin espacios; genera un token aleatorio",
+      });
+    }
+  });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
@@ -81,6 +113,9 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
     mcpAuth: {
       enabled: parseOptionalBoolean(process.env.MCP_AUTH_ENABLED),
       token: process.env.MCP_AUTH_TOKEN,
+      scopes: process.env.MCP_AUTH_SCOPES?.split(",")
+        .map((scope) => scope.trim())
+        .filter(Boolean),
     },
   });
 
@@ -129,9 +164,9 @@ function parseOptionalInteger(value: string | undefined): number | undefined {
     return undefined;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number(value);
 
-  if (Number.isNaN(parsed)) {
+  if (!Number.isSafeInteger(parsed)) {
     throw new Error(`Valor numerico invalido: ${value}`);
   }
 

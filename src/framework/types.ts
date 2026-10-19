@@ -24,6 +24,8 @@ export interface ToolExecutionContext {
   config: AppConfig;
   logger: Logger;
   restClient: RestClient;
+  signal?: AbortSignal;
+  principal?: { id: string; scopes: string[] };
 }
 
 export interface McpToolDefinition {

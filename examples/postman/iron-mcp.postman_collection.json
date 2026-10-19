@@ -1,0 +1,193 @@
+{
+  "info": {
+    "name": "IronMCP — pruebas locales",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Configura mcp_token con MCP_AUTH_TOKEN de tu .env. Transporte HTTP stateless; no requiere mcp-session-id. API_TOKEN autentica la API externa y no se usa como token de Postman."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{mcp_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "mcp_url",
+      "value": "http://127.0.0.1:3000/mcp"
+    },
+    {
+      "key": "mcp_token",
+      "value": ""
+    },
+    {
+      "key": "subscriber_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Estado HTTP",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "url": "http://127.0.0.1:3000/healthz"
+      }
+    },
+    {
+      "name": "2. Inicializar",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json, text/event-stream"
+          },
+          {
+            "key": "MCP-Protocol-Version",
+            "value": "2025-11-25"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-11-25\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{mcp_url}}"
+      }
+    },
+    {
+      "name": "3. Listar tools",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json, text/event-stream"
+          },
+          {
+            "key": "MCP-Protocol-Version",
+            "value": "2025-11-25"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{mcp_url}}"
+      }
+    },
+    {
+      "name": "4. Health check MCP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json, text/event-stream"
+          },
+          {
+            "key": "MCP-Protocol-Version",
+            "value": "2025-11-25"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_check\",\n    \"arguments\": {\n      \"echo\": \"hola desde Postman\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{mcp_url}}"
+      }
+    },
+    {
+      "name": "5. API segura — requiere external-api:read",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json, text/event-stream"
+          },
+          {
+            "key": "MCP-Protocol-Version",
+            "value": "2025-11-25"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 4,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"call_secure_api\",\n    \"arguments\": {\n      \"path\": \"/bearer\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{mcp_url}}"
+      }
+    },
+    {
+      "name": "6. Balance — requiere billing:read y API configurada",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json, text/event-stream"
+          },
+          {
+            "key": "MCP-Protocol-Version",
+            "value": "2025-11-25"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 5,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_subscriber_balance\",\n    \"arguments\": {\n      \"subscriberId\": \"{{subscriber_id}}\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{mcp_url}}"
+      }
+    }
+  ]
+}

@@ -19,13 +19,7 @@ export async function startHttpTransport(
 
   app.use(config.http.path, requireMcpAuth(config));
 
-  const transports = new Map<
-    string,
-    {
-      server: McpServer;
-      transport: StreamableHTTPServerTransport;
-    }
-  >();
+  let activeRequests = 0;
 
   app.get("/healthz", (_request: Request, response: Response) => {
     response.json({
@@ -36,7 +30,14 @@ export async function startHttpTransport(
   });
 
   app.post(config.http.path, (request: Request, response: Response) => {
-    void handleMcpPost(request, response, serverFactory, transports, logger);
+    if (activeRequests >= 100) {
+      response.status(503).json({ error: "Too many active MCP requests" });
+      return;
+    }
+    activeRequests += 1;
+    void handleMcpPost(request, response, serverFactory, logger).finally(() => {
+      activeRequests -= 1;
+    });
   });
 
   app.get(config.http.path, (_request: Request, response: Response) => {
@@ -83,56 +84,26 @@ async function handleMcpPost(
   request: Request,
   response: Response,
   serverFactory: () => McpServer,
-  transports: Map<
-    string,
-    {
-      server: McpServer;
-      transport: StreamableHTTPServerTransport;
-    }
-  >,
   logger: Logger,
 ): Promise<void> {
+  let server: McpServer | undefined;
+  let cleanupPromise: Promise<void> | undefined;
+  const cleanup = (): Promise<void> => {
+    cleanupPromise ??= server?.close() ?? Promise.resolve();
+    return cleanupPromise;
+  };
+  const onClose = (): void => {
+    void cleanup().catch((error: unknown) => {
+      logger.error({ error: toSafeErrorMessage(error) }, "mcp_http_cleanup_failed");
+    });
+  };
+  const deadline = setTimeout(() => response.destroy(), 30000);
+  response.once("close", onClose);
   try {
-    const sessionId = request.header("mcp-session-id");
-
-    let server: McpServer;
-    let transport: StreamableHTTPServerTransport;
-
-    if (sessionId !== undefined && transports.has(sessionId)) {
-      const existing = transports.get(sessionId);
-
-      if (existing === undefined) {
-        throw new Error("MCP session not found");
-      }
-
-      server = existing.server;
-      transport = existing.transport;
-    } else {
-      server = serverFactory();
-
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => Math.random().toString(36).slice(2),
-        onsessioninitialized: (newSessionId: string) => {
-          transports.set(newSessionId, {
-            server,
-            transport,
-          });
-        },
-      });
-
-      if (typeof transport.onclose !== "function") {
-        (
-          transport as unknown as {
-            onclose: () => void;
-          }
-        ).onclose = () => {
-          // noop
-        };
-      }
-
-      await server.connect(transport as unknown as Parameters<typeof server.connect>[0]);
-    }
-
+    server = serverFactory();
+    const transport = new StreamableHTTPServerTransport();
+    // SDK optional callbacks are incompatible with exactOptionalPropertyTypes.
+    await server.connect(transport as unknown as Parameters<typeof server.connect>[0]);
     await transport.handleRequest(request, response, request.body);
   } catch (error) {
     logger.error(
@@ -152,5 +123,11 @@ async function handleMcpPost(
         id: null,
       });
     }
+  } finally {
+    clearTimeout(deadline);
+    response.off("close", onClose);
+    await cleanup().catch((error: unknown) => {
+      logger.error({ error: toSafeErrorMessage(error) }, "mcp_http_cleanup_failed");
+    });
   }
 }

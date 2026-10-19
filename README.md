@@ -12,7 +12,7 @@ Starter empresarial para crear servidores MCP en Node.js + TypeScript con:
 
 ## Requisitos
 
-- Node.js `>=22`
+- Node.js `22.22.1+` (rama 22), `24.x` o `26+`
 - npm `>=10`
 
 ## Inicio rapido
@@ -20,6 +20,7 @@ Starter empresarial para crear servidores MCP en Node.js + TypeScript con:
 ```bash
 npm install
 cp .env.example .env
+# Configura MCP_AUTH_TOKEN en .env con un token aleatorio antes de arrancar HTTP.
 npm run validate
 ```
 
@@ -66,6 +67,20 @@ Luego ejecuta:
 npm run dev:http
 bash scripts/smoke-http.sh examples/http/call-secure-api.json
 ```
+
+## Seguridad y permisos
+
+HTTP requiere `MCP_AUTH_TOKEN` cuando `MCP_AUTH_ENABLED=true`; debe tener entre 32 y 256 caracteres ASCII sin espacios. Genera un token aleatorio con `openssl rand -hex 32`. Si falta o es inválido, el servidor falla al iniciar. El cliente debe enviar `Authorization: Bearer <token>`. Para el script de prueba, exporta `MCP_AUTH_TOKEN` en la terminal antes de ejecutar `bash scripts/smoke-http.sh`.
+
+`MCP_AUTH_SCOPES` define los permisos del token, separados por comas (por ejemplo, `external-api:read,billing:read`). Cada tool comprueba sus permisos antes de ejecutar el handler. Si se desactiva la autenticación HTTP, solo se pueden ejecutar tools públicas. En STDIO, el proceso local es un cliente de confianza y recibe únicamente los scopes configurados.
+
+La autenticación permite 10 intentos fallidos por dirección remota en una ventana de 60 segundos. Después devuelve `429` con `Retry-After`, incluso si el siguiente token es correcto, hasta finalizar la ventana. El registro tiene un máximo de 1024 direcciones y no confía en `X-Forwarded-For`. El límite vive en cada proceso; detrás de un proxy, las peticiones comparten la dirección de ese proxy.
+
+HTTP opera sin sesiones: cada petición crea y cierra su servidor MCP; no se devuelve `mcp-session-id`. Se admiten hasta 100 peticiones simultáneas con un plazo máximo de 30 segundos.
+
+Al vencer el timeout o cancelar una petición MCP, el framework aborta `context.signal` y el `context.restClient` asociado. Las tools deben consumir ese cliente del contexto. Para otras operaciones asíncronas, pasa `context.signal` a las APIs que admitan cancelación y comprueba `context.signal?.throwIfAborted()` antes de efectos posteriores. JavaScript no puede interrumpir de forma forzada código que ignora la señal; cancelar una petición tampoco revierte operaciones ya ejecutadas por la API externa.
+
+`RestClient` acepta rutas relativas del origen configurado en `API_BASE_URL`, bloquea URLs absolutas y redirecciones, y limita cada respuesta a 2 MiB. Los headers y parámetros de consulta no se escriben en los logs REST. La tool de demostración `call_secure_api` solo permite `/bearer`; para otros endpoints crea una tool con rutas y permisos específicos.
 
 ## Scripts principales
 
@@ -193,14 +208,13 @@ Agregar este código:
 ```ts
 import * as z from "zod/v4";
 
-import type { RestClient } from "../framework/rest/rest-client.js";
 import { defineTool } from "../framework/types.js";
 
 const getSubscriberDataBalanceInputSchema = z.object({
   subscriberId: z.string().min(8).describe("Número de suscriptor. Ejemplo: 50230448966"),
 });
 
-export function createGetSubscriberDataBalanceTool(restClient: RestClient) {
+export function createGetSubscriberDataBalanceTool() {
   return defineTool({
     name: "get_subscriber_data_balance",
     title: "Get Subscriber Data Balance",
@@ -233,10 +247,10 @@ export function createGetSubscriberDataBalanceTool(restClient: RestClient) {
       category: "external-api",
       pii: true,
     },
-    async handler(input) {
+    async handler(input, context) {
       const parsedInput = getSubscriberDataBalanceInputSchema.parse(input);
 
-      const response = await restClient.get<{
+      const response = await context.restClient.get<{
         data?: {
           local?: {
             description?: {
@@ -316,19 +330,17 @@ src/tools/index.ts
 Debe quedar similar a esto:
 
 ```ts
-import type { RestClient } from "../framework/rest/rest-client.js";
-
 import { callSecureApiTool } from "./call-secure-api.tool.js";
 import { createGetSubscriberBalanceTool } from "./get-subscriber-balance.tool.js";
 import { createGetSubscriberDataBalanceTool } from "./get-subscriber-data-balance.tool.js";
 import { healthTool } from "./health.tool.js";
 
-export function createTools(restClient: RestClient) {
+export function createTools() {
   return [
     healthTool,
     callSecureApiTool,
-    createGetSubscriberBalanceTool(restClient),
-    createGetSubscriberDataBalanceTool(restClient),
+    createGetSubscriberBalanceTool(),
+    createGetSubscriberDataBalanceTool(),
   ];
 }
 ```
@@ -470,3 +482,5 @@ info@nworldt.net
 Every contribution, no matter the size, helps keep IronMCP growing.
 
 Thank you for your support! 🚀
+
+Knip conserva los exports del framework usados dentro de su propio archivo. El preset de Secretlint se declara en `ignoreDependencies` porque se carga dinámicamente desde `.secretlintrc.json`; `secrets:check` valida su ejecución.

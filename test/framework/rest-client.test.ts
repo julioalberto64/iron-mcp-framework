@@ -25,6 +25,22 @@ afterEach(async () => {
 });
 
 describe("RestClient", () => {
+  it("rechaza redirecciones sin llamar al destino", async () => {
+    const paths: string[] = [];
+    const baseUrl = await startTestServer((path) => paths.push(path));
+    const config = {
+      api: { baseUrl, timeoutMs: 1000 },
+    } as AppConfig;
+    const client = new RestClient({
+      config,
+      logger: pino({ level: "silent" }),
+      authHeaderProvider: {
+        getHeaders: () => Promise.resolve({ Authorization: "Bearer test-token" }),
+      },
+    });
+    await expect(client.get("/redirect")).rejects.toThrow();
+    expect(paths).toEqual(["/redirect"]);
+  });
   it("envia Authorization y parsea JSON", async () => {
     const baseUrl = await startTestServer();
     const config: AppConfig = {
@@ -71,8 +87,14 @@ describe("RestClient", () => {
   });
 });
 
-async function startTestServer(): Promise<string> {
+async function startTestServer(onRequest?: (path: string) => void): Promise<string> {
   server = createServer((request, response) => {
+    onRequest?.(request.url ?? "");
+    if (request.url === "/redirect") {
+      response.writeHead(302, { Location: "/secure" });
+      response.end();
+      return;
+    }
     const authorization = request.headers.authorization ?? "";
     response.setHeader("Content-Type", "application/json");
     response.end(
