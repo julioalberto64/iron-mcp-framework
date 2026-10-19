@@ -127,6 +127,14 @@ El validador propio `tools/mcp-validate.mjs` falla el build si detecta:
 - tools sin `inputSchema`, `timeoutMs`, `auth`, `audit`, `idempotent` o `handler`.
 - posibles secretos hardcodeados en `config/default.yaml` o `.env.example`.
 
+## Crear tools con ayuda de una IA
+
+La skill del repositorio está en [`.agents/skills/create-mcp-tool/SKILL.md`](.agents/skills/create-mcp-tool/SKILL.md). [AGENTS.md](AGENTS.md) indica a los agentes que la lean cuando se les solicite crear o ampliar una tool. Incluye el flujo de implementación, registro, permisos, cancelación, pruebas y ejemplos HTTP/Postman.
+
+Puedes pedir: «Crea una tool para consultar un cliente usando GET /customers/{customerId}, con scope customers:read; implementa y valida el cambio». Incluye el contrato real de entrada y respuesta del endpoint. En clientes que permitan invocar skills por nombre, también puedes usar `$create-mcp-tool`.
+
+Si tu asistente no descubre skills ni lee `AGENTS.md` automáticamente, indícale que abra el `SKILL.md` anterior. El ejemplo completo de código y pruebas está en [references/example.md](.agents/skills/create-mcp-tool/references/example.md); no se registra ninguna tool de demostración en el servidor por agregar esta guía.
+
 ## Crear una nueva tool
 
 Copia `src/tools/health.tool.ts` y cambia:

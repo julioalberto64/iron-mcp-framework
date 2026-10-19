@@ -1,0 +1,7 @@
+interface:
+  display_name: "Crear tool MCP"
+  short_description: "Crea y valida tools seguras para IronMCP"
+  default_prompt: "Usa $create-mcp-tool para implementar y validar una nueva tool en este framework MCP."
+
+policy:
+  allow_implicit_invocation: true

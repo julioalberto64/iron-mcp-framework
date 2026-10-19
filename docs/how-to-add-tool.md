@@ -1,5 +1,7 @@
 # Como agregar una nueva tool
 
+Para trabajar con una IA, consulta [la skill de creación de tools](../.agents/skills/create-mcp-tool/SKILL.md). Su [ejemplo completo](../.agents/skills/create-mcp-tool/references/example.md) incluye validación de respuesta, registro, prueba y petición HTTP.
+
 ## 1. Crear archivo
 
 Crea un archivo bajo `src/tools` con nombre `*.tool.ts`, por ejemplo:
@@ -42,7 +44,7 @@ export const getCustomerTool = defineTool({
   },
   async handler(input, context) {
     const parsed = GetCustomerInput.parse(input);
-    return context.restClient.get(`/customers/${parsed.customerId}`);
+    return context.restClient.get(`/customers/${encodeURIComponent(parsed.customerId)}`);
   },
 });
 ```
@@ -54,7 +56,10 @@ Edita `src/tools/index.ts`:
 ```ts
 import { getCustomerTool } from "./get-customer.tool.js";
 
-export const tools = [healthTool, callSecureApiTool, getCustomerTool];
+// Agrega getCustomerTool al array de createTools(), conservando las existentes.
+export function createTools() {
+  return [healthTool, callSecureApiTool, createGetSubscriberBalanceTool(), getCustomerTool];
+}
 ```
 
 ## 5. Validar
