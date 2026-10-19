@@ -22,6 +22,31 @@ export const AppConfigSchema = z
       host: z.string().min(1),
       port: z.number().int().min(1).max(65535),
       path: z.string().startsWith("/"),
+      allowedHosts: z
+        .array(
+          z
+            .string()
+            .min(1)
+            .refine((host) => {
+              try {
+                const url = new URL(`http://${host}`);
+                return (
+                  !host.includes("*") &&
+                  url.hostname === host &&
+                  !url.port &&
+                  !url.username &&
+                  !url.password &&
+                  url.pathname === "/" &&
+                  !url.search &&
+                  !url.hash
+                );
+              } catch {
+                return false;
+              }
+            }, "HTTP_ALLOWED_HOSTS requiere hostnames exactos, sin protocolo, puerto ni ruta"),
+        )
+        .min(1)
+        .optional(),
     }),
     logging: z.object({
       level: LogLevelSchema,
@@ -96,6 +121,11 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       host: process.env.HTTP_HOST,
       port: parseOptionalInteger(process.env.HTTP_PORT),
       path: process.env.HTTP_PATH,
+      allowedHosts: process.env.HTTP_ALLOWED_HOSTS?.trim()
+        ? process.env.HTTP_ALLOWED_HOSTS.split(",")
+            .map((host) => host.trim())
+            .filter(Boolean)
+        : undefined,
     },
     logging: {
       level: process.env.LOG_LEVEL,

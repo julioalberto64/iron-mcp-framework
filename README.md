@@ -51,6 +51,19 @@ npm run build
 npm run mcp:inspect:stdio
 ```
 
+## Probar con un túnel de VS Code
+
+Con el servidor activo en el puerto 3000, reenvía ese puerto desde el panel **Ports** de VS Code. Los túneles son privados de forma predeterminada: Postman o un cliente externo puede recibir una redirección al login de GitHub. Si necesitas acceso sin esa sesión, cambia **Port Visibility > Public** durante la prueba. Un puerto público permite que cualquiera con la URL acceda al servicio; conserva la autenticación MCP para las tools protegidas.
+
+Autoriza el hostname exacto del túnel en `.env`, sin protocolo ni ruta, y reinicia el servidor:
+
+```env
+HTTP_HOST=127.0.0.1
+HTTP_ALLOWED_HOSTS=your-tunnel-3000.use2.devtunnels.ms
+```
+
+El servidor mantiene la validación de Host y permite también localhost; no es necesario escuchar en `0.0.0.0`. Si cambia la dirección del túnel, actualiza la lista. En Postman configura `mcp_url` como `https://your-tunnel-3000.use2.devtunnels.ms/mcp`. Para comprobar únicamente el estado, usa `GET https://your-tunnel-3000.use2.devtunnels.ms/healthz`. Deja VS Code y el servidor ejecutándose mientras pruebas.
+
 ## Probar la tool REST autenticada
 
 El proyecto trae una tool llamada `call_secure_api`. Por defecto llama a `https://httpbin.org/bearer`, que espera un header `Authorization: Bearer <token>`.

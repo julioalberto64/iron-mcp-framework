@@ -2,7 +2,7 @@ import pino from "pino";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { Server } from "node:http";
+import { get as httpGet, type Server } from "node:http";
 
 import { parseConfig, type AppConfig } from "../../src/framework/config.js";
 import { createMcpServer } from "../../src/framework/create-mcp-server.js";
@@ -60,6 +60,19 @@ describe("Secure configuration", () => {
       expect(() => parseConfig(config)).toThrow("MCP_AUTH_TOKEN");
     },
   );
+  it.each([
+    "https://tunnel.example.test",
+    "tunnel.example.test/mcp",
+    "tunnel.example.test:3000",
+    "*.devtunnels.ms",
+    "user@tunnel.example.test",
+  ])("rejects invalid allowed hostname %s", (hostname) => {
+    const config = makeConfig();
+    config.http.port = 3000;
+    config.http.allowedHosts = [hostname];
+    expect(() => parseConfig(config)).toThrow("HTTP_ALLOWED_HOSTS");
+  });
+
   it.each(["file:///etc/passwd", "https://user:password@api.example"])(
     "rejects API URL %s",
     (baseUrl) => {
@@ -195,6 +208,29 @@ describe("HTTP authentication and stateless lifecycle", () => {
     await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
     return { client, transport };
   }
+
+  it("allows only the explicitly configured tunnel hostname and localhost", async () => {
+    const config = makeConfig();
+    config.http.allowedHosts = ["approved.example.test"];
+    const { url } = await start(config);
+    async function status(host: string): Promise<number> {
+      return new Promise((resolve, reject) => {
+        const request = httpGet(
+          new URL("/healthz", url),
+          { headers: { Host: host } },
+          (response) => {
+            response.resume();
+            response.on("end", () => resolve(response.statusCode ?? 0));
+          },
+        );
+        request.on("error", reject);
+      });
+    }
+    expect(await status("approved.example.test")).toBe(200);
+    expect(await status("127.0.0.1")).toBe(200);
+    expect(await status("attacker.example.test")).toBe(403);
+    expect(await status("approved.example.test.attacker.example")).toBe(403);
+  });
 
   it("rejects absent and invalid bearer tokens", async () => {
     const { url, handler } = await start(makeConfig());

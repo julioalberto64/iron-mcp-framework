@@ -80,12 +80,23 @@ describe("get_weather", () => {
       { service: "weather-current" },
     );
   });
+  it.each(["São Paulo", "México", "東京", "Saint-Étienne", "L’Haÿ-les-Roses", "Sa\u0303o Paulo"])(
+    "acepta nombres Unicode en la validación del servidor: %s",
+    async (city) => {
+      const { context } = setup([{ ...location, name: city }]);
+      await expect(getWeatherTool.handler({ city }, context)).resolves.toMatchObject({
+        result: { status: "ok", city },
+      });
+    },
+  );
   it.each([
     {},
     { city: "" },
     { city: " " },
     { city: 5 },
     { city: "x" },
+    { city: "1234" },
+    { city: "Villa 😃" },
     { city: "x".repeat(121) },
     { city: "https://evil.test" },
     { city: "Villa\nEjemplo" },
@@ -188,6 +199,27 @@ describe("get_weather", () => {
     await expect(getWeatherTool.handler({ city: location.name }, context)).rejects.toThrow();
     expect(get).not.toHaveBeenCalled();
   });
+});
+
+it("publica un schema MCP portable sin patrones Unicode que rechacen los clientes", async () => {
+  const { context } = setup();
+  const server = createMcpServer({ config: context.config, context, tools: [getWeatherTool] });
+  const client = new Client({ name: "schema-test", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const list = await client.listTools();
+    const tool = list.tools.find((item) => item.name === "get_weather");
+    expect(tool?.inputSchema.required).toContain("city");
+    const citySchema = tool?.inputSchema.properties?.city;
+    expect(citySchema).toMatchObject({ type: "string", minLength: 2, maxLength: 120 });
+    expect(citySchema).not.toHaveProperty("pattern");
+    expect(JSON.stringify(tool?.inputSchema)).not.toContain("\\p{");
+  } finally {
+    await client.close();
+    await server.close();
+  }
 });
 
 it.each([{ scopes: [] as string[] }, { scopes: ["weather:read"] }])(

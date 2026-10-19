@@ -15,7 +15,14 @@ export async function startHttpTransport(
   config: AppConfig,
   logger: Logger,
 ): Promise<Server> {
-  const app = createMcpExpressApp({ host: config.http.host });
+  const app = createMcpExpressApp({
+    host: config.http.host,
+    ...(config.http.allowedHosts === undefined
+      ? {}
+      : {
+          allowedHosts: ["localhost", "127.0.0.1", "[::1]", ...config.http.allowedHosts],
+        }),
+  });
 
   app.use(config.http.path, requireMcpAuth(config));
 
